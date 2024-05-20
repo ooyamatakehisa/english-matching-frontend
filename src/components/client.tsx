@@ -5,16 +5,20 @@ import { uuidV4 } from '@skyway-sdk/token';
 import { useEffect, useState } from 'react';
 
 export default function Client({ token }: { token: string }) {
-    const [context, setContext] = useState<any>(null);
-    const [room, setRoom] = useState<(import('@skyway-sdk/room').P2PRoom | import('@skyway-sdk/room').SfuRoom | null)>(null);
+    const [context, setContext] = useState<
+        import('@skyway-sdk/room').SkyWayContext | null
+    >(null);
+    const [room, setRoom] = useState<
+        import('@skyway-sdk/room').P2PRoom | import('@skyway-sdk/room').SfuRoom | null
+    >(null);
     const [audioVideoStream, setAudioVideoStream] = useState<any>(null);
+    const [channelName, setChannelName] = useState<string>(uuidV4());
 
     useEffect(() => {
         (async () => {
             const { SkyWayContext, SkyWayStreamFactory } = await import(
                 '@skyway-sdk/room'
             );
-
             const localVideo = document.getElementById(
                 'js-local-stream',
             ) as HTMLVideoElement;
@@ -48,16 +52,13 @@ export default function Client({ token }: { token: string }) {
 
         const leaveTrigger = document.getElementById('js-leave-trigger')!;
         const remoteVideos = document.getElementById('js-remote-streams')!;
-        const channelName = document.getElementById(
-            'js-channel-name',
-        ) as HTMLInputElement;
         const messages = document.getElementById('js-messages')!;
 
-        if (room) {
+        if (room || !context) {
             return;
         }
         const newRoom = await SkyWayRoom.FindOrCreate(context, {
-            name: channelName.value,
+            name: channelName,
             type: getRoomTypeByHash(),
         });
         setRoom(newRoom);
@@ -69,7 +70,9 @@ export default function Client({ token }: { token: string }) {
             messages.textContent += `=== ${e.member.id.slice(0, 5)} joined ===\n`;
         });
 
-        member.onPublicationSubscribed.add(onPublicationSubscribed(remoteVideos, newRoom));
+        member.onPublicationSubscribed.add(
+            onPublicationSubscribed(remoteVideos, newRoom),
+        );
         const subscribe = async (publication: any) => {
             if (publication.publisher.id === member.id) return;
             await member.subscribe(publication.id);
@@ -122,36 +125,38 @@ export default function Client({ token }: { token: string }) {
 
     const getRoomTypeByHash = () => (location.hash === '#sfu' ? 'sfu' : 'p2p');
 
-    const onPublicationSubscribed = (removeVideos: HTMLElement, room: any) => async ({ stream, subscription }: any) => {
-        const userVideo: Record<string, HTMLVideoElement> = {};
-        if (stream.contentType === 'data') return;
+    const onPublicationSubscribed =
+        (removeVideos: HTMLElement, room: any) =>
+        async ({ stream, subscription }: any) => {
+            const userVideo: Record<string, HTMLVideoElement> = {};
+            if (stream.contentType === 'data') return;
 
-        const publisherId = subscription.publication.publisher.id;
-        if (!userVideo[publisherId]) {
-            const newVideo = document.createElement('video');
-            newVideo.playsInline = true;
-            newVideo.autoplay = true;
-            newVideo.setAttribute(
-                'data-member-id',
-                subscription.publication.publisher.id,
-            );
+            const publisherId = subscription.publication.publisher.id;
+            if (!userVideo[publisherId]) {
+                const newVideo = document.createElement('video');
+                newVideo.playsInline = true;
+                newVideo.autoplay = true;
+                newVideo.setAttribute(
+                    'data-member-id',
+                    subscription.publication.publisher.id,
+                );
 
-            removeVideos.append(newVideo);
-            userVideo[publisherId] = newVideo;
-        }
-        const newVideo = userVideo[publisherId];
-        stream.attach(newVideo);
+                removeVideos.append(newVideo);
+                userVideo[publisherId] = newVideo;
+            }
+            const newVideo = userVideo[publisherId];
+            stream.attach(newVideo);
 
-        if (subscription.contentType === 'video' && room.type === 'sfu') {
-            newVideo.onclick = () => {
-                if (subscription.preferredEncoding === 'low') {
-                    subscription.changePreferredEncoding('high');
-                } else {
-                    subscription.changePreferredEncoding('low');
-                }
-            };
-        }
-    }
+            if (subscription.contentType === 'video' && room.type === 'sfu') {
+                newVideo.onclick = () => {
+                    if (subscription.preferredEncoding === 'low') {
+                        subscription.changePreferredEncoding('high');
+                    } else {
+                        subscription.changePreferredEncoding('low');
+                    }
+                };
+            }
+        };
 
     return (
         <main className="flex min-h-screen flex-col items-center justify-between p-24">
@@ -169,10 +174,14 @@ export default function Client({ token }: { token: string }) {
                             <Input
                                 type="text"
                                 placeholder="Channel Name"
-                                id="js-channel-name"
-                                defaultValue={uuidV4()}
+                                defaultValue={channelName}
+                                onChange={(e) => setChannelName(e.target.value)}
                             />
-                            <Button id="js-join-trigger" onClick={onClick}>
+                            <Button
+                                id="js-join-trigger"
+                                onClick={onClick}
+                                disabled={!context}
+                            >
                                 Join
                             </Button>
                             <Button id="js-leave-trigger">Leave</Button>
