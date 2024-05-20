@@ -7,12 +7,13 @@ export default function Client({ token }: { token: string }) {
   useEffect(() => {
     (async () => {
       const {
-        P2PRoom,
-        SfuRoom,
         SkyWayContext,
         SkyWayRoom,
         SkyWayStreamFactory,
       } = await import("@skyway-sdk/room");
+      const a = await import("@skyway-sdk/room");
+      
+
       const localVideo = document.getElementById(
         "js-local-stream"
       ) as HTMLVideoElement;
@@ -45,7 +46,7 @@ export default function Client({ token }: { token: string }) {
         log: { level: "warn", format: "object" },
       });
 
-      let room: P2PRoom | SfuRoom;
+      let room: import("@skyway-sdk/room").P2PRoom | import("@skyway-sdk/room").SfuRoom;
 
       // Register join handler
       joinTrigger.addEventListener("click", async () => {
