@@ -1,6 +1,7 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { uuidV4 } from '@skyway-sdk/token';
 import { useEffect, useState } from 'react';
 
 export default function Client({ token }: { token: string }) {
@@ -118,6 +119,7 @@ export default function Client({ token }: { token: string }) {
             once: true,
         });
     };
+
     const getRoomTypeByHash = () => (location.hash === '#sfu' ? 'sfu' : 'p2p');
 
     const onPublicationSubscribed = (removeVideos: HTMLElement, room: any) => async ({ stream, subscription }: any) => {
@@ -168,7 +170,7 @@ export default function Client({ token }: { token: string }) {
                                 type="text"
                                 placeholder="Channel Name"
                                 id="js-channel-name"
-                                defaultValue="test"
+                                defaultValue={uuidV4()}
                             />
                             <Button id="js-join-trigger" onClick={onClick}>
                                 Join
