@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "dev:db": "docker run --rm --name english-matching-postgres -p 5432:5432 --env-file .env -d -v postgres-volume-english-matching:/var/lib/postgresql/data postgres",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
