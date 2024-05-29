@@ -2,9 +2,24 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { uuidV4 } from '@skyway-sdk/token';
-import { useEffect, useState } from 'react';
+import { Mic, MicOff, Video, VideoOff } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
-export default function Client({ token }: { token: string }) {
+type Channel = {
+    id: string;
+    waitId1: string;
+    waitId2: string;
+};
+
+export default function Client({
+    token,
+    channel: matchedChannel,
+    waitId,
+}: {
+    token: string;
+    channel?: Channel;
+    waitId?: string;
+}) {
     const [context, setContext] = useState<
         import('@skyway-sdk/room').SkyWayContext | null
     >(null);
@@ -12,17 +27,33 @@ export default function Client({ token }: { token: string }) {
         import('@skyway-sdk/room').P2PRoom | import('@skyway-sdk/room').SfuRoom | null
     >(null);
     const [audioVideoStream, setAudioVideoStream] = useState<any>(null);
-    const [channelName, setChannelName] = useState<string>(uuidV4());
+    const [channel, setChannel] = useState<Channel | undefined>(matchedChannel);
+
+    const [videoOn, setVideoOn] = useState(true);
+    const [micOn, setMicOn] = useState(true);
+
+    const localVideo = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
+        let timer: NodeJS.Timeout;
         (async () => {
+            if (waitId) {
+                timer = setInterval(async () => {
+                    const query_params = new URLSearchParams({
+                        waitId,
+                    });
+                    const res = await fetch('/api/match?' + query_params);
+                    if (res.status !== 404) {
+                        const data = await res.json();
+                        setChannel(data);
+                        clearInterval(timer);
+                    }
+                }, 1000);
+            }
+
             const { SkyWayContext, SkyWayStreamFactory } = await import(
                 '@skyway-sdk/room'
             );
-            const localVideo = document.getElementById(
-                'js-local-stream',
-            ) as HTMLVideoElement;
-
             const roomMode = document.getElementById('js-room-type')!;
 
             roomMode.textContent = getRoomTypeByHash();
@@ -33,11 +64,13 @@ export default function Client({ token }: { token: string }) {
             const { audio, video } =
                 await SkyWayStreamFactory.createMicrophoneAudioAndCameraStream();
 
-            // Render local stream
-            localVideo.muted = true;
-            localVideo.playsInline = true;
-            video.attach(localVideo);
-            await localVideo.play();
+            if (localVideo.current) {
+                localVideo.current.muted = true;
+                localVideo.current.playsInline = true;
+                video.attach(localVideo.current);
+                await localVideo.current.play();
+            }
+
             setAudioVideoStream({ audio, video });
 
             const context = await SkyWayContext.Create(token, {
@@ -45,9 +78,17 @@ export default function Client({ token }: { token: string }) {
             });
             setContext(context);
         })();
-    }, [token]);
+
+        return () => {
+            clearInterval(timer);
+        };
+    }, [token, localVideo, waitId]);
 
     const onClick = async () => {
+        if (!channel) {
+            return;
+        }
+
         const { SkyWayRoom } = await import('@skyway-sdk/room');
 
         const leaveTrigger = document.getElementById('js-leave-trigger')!;
@@ -58,7 +99,7 @@ export default function Client({ token }: { token: string }) {
             return;
         }
         const newRoom = await SkyWayRoom.FindOrCreate(context, {
-            name: channelName,
+            name: channel.id,
             type: getRoomTypeByHash(),
         });
         setRoom(newRoom);
@@ -158,6 +199,15 @@ export default function Client({ token }: { token: string }) {
             }
         };
 
+    const turnOffVideo = () => {
+        setVideoOn((p) => !p);
+        const src = localVideo.current!.srcObject! as MediaStream;
+        src.getVideoTracks()
+            .forEach((track) => {
+                track.enabled = !track.enabled;
+            });
+    };
+
     return (
         <main className="flex min-h-screen flex-col items-center justify-between p-24">
             <div className="container">
@@ -168,25 +218,35 @@ export default function Client({ token }: { token: string }) {
                 </p>
                 <div className="room">
                     <div>
-                        <video id="js-local-stream"></video>
+                        <video ref={localVideo}></video>
                         <span id="js-room-type"></span>:
-                        <div className="flex w-full max-w-sm items-center space-x-2">
-                            <Input
-                                type="text"
-                                placeholder="Channel Name"
-                                defaultValue={channelName}
-                                onChange={(e) => setChannelName(e.target.value)}
-                            />
-                            <Button
-                                id="js-join-trigger"
-                                onClick={onClick}
-                                disabled={!context}
-                            >
-                                Join
-                            </Button>
-                            <Button id="js-leave-trigger">Leave</Button>
-                        </div>
+                        {channel ? (
+                            <div className="flex w-full max-w-sm items-center space-x-2">
+                                <Button
+                                    id="js-join-trigger"
+                                    onClick={onClick}
+                                    disabled={!context}
+                                >
+                                    Join
+                                </Button>
+                                <Button id="js-leave-trigger">Leave</Button>
+                            </div>
+                        ) : (
+                            <>マッチング中</>
+                        )}
                     </div>
+
+                    <Button variant="outline" size="icon" onClick={turnOffVideo}>
+                        {videoOn ? <Video /> : <VideoOff />}
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setMicOn((p) => !p)}
+                    >
+                        {micOn ? <Mic /> : <MicOff />}
+                    </Button>
 
                     <div className="remote-streams" id="js-remote-streams"></div>
 
@@ -198,3 +258,4 @@ export default function Client({ token }: { token: string }) {
         </main>
     );
 }
+<Video strokeWidth={1.5} />;

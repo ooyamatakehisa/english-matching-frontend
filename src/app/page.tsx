@@ -1,47 +1,14 @@
-import Client from "@/components/client";
-import { SkyWayAuthToken, nowInSec, uuidV4 } from "@skyway-sdk/token";
+import { Button } from '@/components/ui/button';
+import Image from 'next/image';
+import Link from 'next/link';
 
-
-export default function Home() {
-    const token = new SkyWayAuthToken({
-      jti: uuidV4(),
-      iat: nowInSec(),
-      exp: nowInSec() + 60 * 60 * 24,
-      scope: {
-        app: {
-          id: process.env.SKY_WAY_APP_ID!,
-          turn: true,
-          actions: ["read"],
-          channels: [
-            {
-              id: "*",
-              name: "*",
-              actions: ["write"],
-              members: [
-                {
-                  id: "*",
-                  name: "*",
-                  actions: ["write"],
-                  publication: {
-                    actions: ["write"],
-                  },
-                  subscription: {
-                    actions: ["write"],
-                  },
-                },
-              ],
-
-              sfuBots: [
-                {
-                  actions: ["write"],
-                  forwardings: [{ actions: ["write"] }],
-                },
-              ],
-            },
-          ],
-        },
-      },
-    }).encode(process.env.SKY_WAY_SECRET!);
-
-  return <Client token={token} />;
+export default function GettingStarted() {
+    return (
+        <div className="flex w-full flex-col items-center">
+                <Image src="/matching.svg" alt="Matching" width={500} height={500} />
+                <Button>
+                    <Link href="/join">マッチングを開始</Link>
+                </Button>
+        </div>
+    );
 }
