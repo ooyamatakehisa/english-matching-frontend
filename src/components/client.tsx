@@ -1,7 +1,7 @@
 'use client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { uuidV4 } from '@skyway-sdk/token';
+import { randomUUID } from 'crypto';
 import { Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -11,15 +11,9 @@ type Channel = {
     waitId2: string;
 };
 
-export default function Client({
-    token,
-    channel: matchedChannel,
-    waitId,
-}: {
-    token: string;
-    channel?: Channel;
-    waitId?: string;
-}) {
+const UNAUTHENTICATED_USER_ID_KEY = 'UNAUTHENTICATED_USER_ID';
+
+export default function Client({ token }: { token: string }) {
     const [context, setContext] = useState<
         import('@skyway-sdk/room').SkyWayContext | null
     >(null);
@@ -27,7 +21,7 @@ export default function Client({
         import('@skyway-sdk/room').P2PRoom | import('@skyway-sdk/room').SfuRoom | null
     >(null);
     const [audioVideoStream, setAudioVideoStream] = useState<any>(null);
-    const [channel, setChannel] = useState<Channel | undefined>(matchedChannel);
+    const [channel, setChannel] = useState<Channel | undefined>(undefined);
 
     const [videoOn, setVideoOn] = useState(true);
     const [micOn, setMicOn] = useState(true);
@@ -35,9 +29,23 @@ export default function Client({
     const localVideo = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
+        const userId = localStorage.getItem(UNAUTHENTICATED_USER_ID_KEY) ?? uuidV4();
+        localStorage.setItem(UNAUTHENTICATED_USER_ID_KEY, userId);
+
         let timer: NodeJS.Timeout;
         (async () => {
-            if (waitId) {
+            const res = await fetch('/api/match', {
+                method: 'POST',
+                body: JSON.stringify({ unauthenticatedUserId: userId }),
+            });
+            if (res.status == 404) {
+                const res = await fetch('/api/waitlisted-users', {
+                    method: 'POST',
+                    body: JSON.stringify({ unauthenticatedUserId: userId }),
+                });
+
+                const waitId = (await res.json()).waitId;
+
                 timer = setInterval(async () => {
                     const query_params = new URLSearchParams({
                         waitId,
@@ -49,6 +57,9 @@ export default function Client({
                         clearInterval(timer);
                     }
                 }, 1000);
+            } else {
+                const data = await res.json();
+                setChannel(data);
             }
 
             const { SkyWayContext, SkyWayStreamFactory } = await import(
@@ -82,7 +93,7 @@ export default function Client({
         return () => {
             clearInterval(timer);
         };
-    }, [token, localVideo, waitId]);
+    }, [token, localVideo]);
 
     const onClick = async () => {
         if (!channel) {
@@ -202,10 +213,9 @@ export default function Client({
     const turnOffVideo = () => {
         setVideoOn((p) => !p);
         const src = localVideo.current!.srcObject! as MediaStream;
-        src.getVideoTracks()
-            .forEach((track) => {
-                track.enabled = !track.enabled;
-            });
+        src.getVideoTracks().forEach((track) => {
+            track.enabled = !track.enabled;
+        });
     };
 
     return (

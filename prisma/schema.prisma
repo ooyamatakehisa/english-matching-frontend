@@ -15,12 +15,15 @@ datasource db {
 
 model WaitlistedUser {
   waitId String @id
+  unauthenticatedUserId String @unique
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 }
 
 model Channel {
   id String @id
+  unauthenticatedUserId1 String
+  unauthenticatedUserId2 String
   waitId1 String @unique
   waitId2 String @unique
   createdAt DateTime @default(now()) @db.Timestamptz(3)

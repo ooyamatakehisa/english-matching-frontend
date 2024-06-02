@@ -1,10 +1,15 @@
 import prisma from '@/lib/prisma';
 import { type NextRequest } from 'next/server'
-import { postMatching } from './post_matching';
+import { postChannel } from './post_channel';
 
-export async function POST() {
-    const matching = await postMatching();
-    return Response.json(matching, { status: 201 });
+export async function POST(req: Request) {
+    const res = await req.json()
+    const channel = await postChannel(res.unauthenticatedUserId);
+    if (!channel) {
+        return Response.json({ message: 'Failed to create channel' }, { status: 404 });
+    }
+
+    return Response.json(channel, { status: 201 });
 }
 
 export async function GET(req: NextRequest) {

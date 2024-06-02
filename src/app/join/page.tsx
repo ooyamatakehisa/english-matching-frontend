@@ -1,8 +1,9 @@
 import Client from '@/components/client';
 import { SkyWayAuthToken, nowInSec, uuidV4 } from '@skyway-sdk/token';
-import { postMatching } from '../api/match/post_matching';
+import { postChannel } from '../api/match/post_channel';
 import { postWaitlistedUser } from '../api/waitlisted-users/post_waitlisted_user';
 
+export const dynamic = 'force-dynamic';
 export default async function Home() {
     const token = new SkyWayAuthToken({
         jti: uuidV4(),
@@ -44,8 +45,8 @@ export default async function Home() {
         },
     }).encode(process.env.SKY_WAY_SECRET!);
 
-    const channel = await postMatching();
-    const props = channel ? { channel } : await postWaitlistedUser()
+    // const channel = await postChannel();
+    // const props = channel ? { channel } : await postWaitlistedUser()
 
-    return <Client token={token} {...props} />;
+    return <Client token={token} />;
 }
